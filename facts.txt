@@ -1,0 +1,115 @@
+;;; PC HARDWARE DIAGNOSTIC EXPERT SYSTEM - FACTBASE (F)
+
+;;; Course: COMP 474/6741 - Intelligent Systems
+;;; Domain: Personal Computer Hardware Diagnostics
+;;; This file contains deftemplates and base facts about the knowledge domain D.
+;;; Load with: (load "facts.txt")
+
+;;; DEFTEMPLATES - Fact structure definitions for modularity and clarity
+
+
+(deftemplate symptom
+  "A symptom observed by the user during hardware diagnosis"
+  (slot id (type SYMBOL))
+  (slot description (type STRING))
+  (slot category (type SYMBOL))); one of: power | display | memory | storage | general
+
+(deftemplate component
+  "Hardware component with its typical failure characteristics"
+  (slot name (type SYMBOL))
+  (slot type (type SYMBOL)) ; power | display | memory | storage | motherboard
+  (slot failure-mode (type STRING)))
+
+(deftemplate failure-scenario
+  "A known failure scenario that the system can diagnose"
+  (slot id (type SYMBOL))
+  (slot name (type STRING))
+  (slot module (type SYMBOL))); power-motherboard | display-graphics | memory-storage
+
+(deftemplate symptom-indicator
+  "Maps a symptom to potential failure scenarios (domain knowledge)"
+  (slot symptom-id (type SYMBOL))
+  (slot indicates-scenario (type SYMBOL))
+  (slot strength (type SYMBOL))); strong | moderate | weak
+
+(deftemplate diagnostic-conclusion
+  "Conclusion reached by the expert system"
+  (slot scenario-id (type SYMBOL))
+  (slot confidence (type SYMBOL))
+  (slot recommended-action (type STRING)))
+
+(deftemplate session-state
+  "Tracks current diagnostic session for debugging"
+  (slot phase (type SYMBOL))
+  (slot message (type STRING)))
+
+(deftemplate reported-symptom
+  "Symptom observed and reported by user during diagnosis (asserted at runtime)"
+  (slot symptom-id (type SYMBOL))
+  (slot observed (type SYMBOL))); yes | no
+
+(deftemplate prompt-shown
+  "Prevents repeated firing of help/session rules"
+  (slot type (type SYMBOL)))
+
+;;; DEFFACTS - Domain knowledge restored on (reset) for proper inference cycle
+
+
+(deffacts domain-knowledge
+  ;; MODULE 1: POWER & MOTHERBOARD - Base domain facts
+  ;; Fact 1: PSU complete failure symptom indicator
+  (symptom-indicator (symptom-id no-power-at-all) (indicates-scenario psu-failure) (strength strong))
+  ;; Fact 2: Random shutdown under load suggests inadequate PSU wattage
+  (symptom-indicator (symptom-id shutdown-under-load) (indicates-scenario psu-inadequate-wattage) (strength strong))
+  ;; Fact 3: POST beep codes indicate motherboard/component detection issues
+  (symptom-indicator (symptom-id post-beep-codes) (indicates-scenario motherboard-post-failure) (strength strong))
+  ;; Fact 4: Intermittent power can indicate loose connections
+  (symptom-indicator (symptom-id intermittent-power) (indicates-scenario loose-power-connections) (strength moderate))
+  ;; Fact 5: System loses time/date points to dead CMOS battery
+  (symptom-indicator (symptom-id time-date-reset) (indicates-scenario cmos-battery-dead) (strength strong))
+  ;; Fact 5b: System freezes under load suggests CPU or VRM overheating
+  (symptom-indicator (symptom-id system-freezes-under-load) (indicates-scenario cpu-overheating) (strength strong))
+
+  ;; MODULE 2: DISPLAY & GRAPHICS - Base domain facts
+  ;; Fact 6: No display output suggests GPU or cable issue
+  (symptom-indicator (symptom-id no-display-output) (indicates-scenario gpu-or-cable-failure) (strength moderate))
+  ;; Fact 7: Screen artifacts often indicate GPU memory or overheating
+  (symptom-indicator (symptom-id screen-artifacts) (indicates-scenario gpu-overheating-or-memory) (strength strong))
+  ;; Fact 8: Monitor not detected can mean cable or GPU seating problem
+  (symptom-indicator (symptom-id monitor-not-detected) (indicates-scenario display-connection-issue) (strength moderate))
+  ;; Fact 9: Driver crash/recovery suggests GPU driver or instability
+  (symptom-indicator (symptom-id driver-crash-recovery) (indicates-scenario gpu-driver-failure) (strength strong))
+
+  ;; MODULE 3: MEMORY & STORAGE - Base domain facts
+  ;; Fact 10: RAM not detected in BIOS indicates seating or compatibility
+  (symptom-indicator (symptom-id ram-not-in-bios) (indicates-scenario ram-seating-or-compatibility) (strength strong))
+  ;; Fact 11: Blue screen crashes often relate to RAM failure
+  (symptom-indicator (symptom-id blue-screen-crashes) (indicates-scenario ram-failure) (strength strong))
+  ;; Fact 12: Storage not detected points to cable or connection
+  (symptom-indicator (symptom-id storage-not-detected) (indicates-scenario storage-connection-failure) (strength strong))
+  ;; Fact 13: Boot device not found indicates storage or boot order
+  (symptom-indicator (symptom-id boot-device-not-found) (indicates-scenario boot-storage-failure) (strength strong))
+  ;; Fact 14: Very slow storage access suggests failing drive
+  (symptom-indicator (symptom-id slow-storage-access) (indicates-scenario storage-failing) (strength moderate))
+
+  ;; Fact 15-17: Component specifications
+  (component (name PSU) (type power) (failure-mode "No output; inadequate wattage; fan failure"))
+  (component (name RAM) (type memory) (failure-mode "Not detected; parity errors; instability under load"))
+  (component (name storage) (type storage) (failure-mode "Not detected; bad sectors; slow degradation"))
+
+  ;; FAILURE SCENARIO REGISTRY - The diagnosable scenarios
+  (failure-scenario (id psu-failure) (name "PSU Complete Failure") (module power-motherboard))
+  (failure-scenario (id psu-inadequate-wattage) (name "PSU Inadequate Wattage") (module power-motherboard))
+  (failure-scenario (id motherboard-post-failure) (name "Motherboard POST Error") (module power-motherboard))
+  (failure-scenario (id loose-power-connections) (name "Loose Power Connections") (module power-motherboard))
+  (failure-scenario (id cmos-battery-dead) (name "Dead CMOS Battery") (module power-motherboard))
+  (failure-scenario (id gpu-or-cable-failure) (name "GPU or Display Cable Failure") (module display-graphics))
+  (failure-scenario (id gpu-overheating-or-memory) (name "GPU Overheating or Memory Defect") (module display-graphics))
+  (failure-scenario (id display-connection-issue) (name "Display Connection Issue") (module display-graphics))
+  (failure-scenario (id gpu-driver-failure) (name "GPU Driver Failure or Instability") (module display-graphics))
+  (failure-scenario (id ram-seating-or-compatibility) (name "RAM Seating or Compatibility Issue") (module memory-storage))
+  (failure-scenario (id ram-failure) (name "RAM Module Failure") (module memory-storage))
+  (failure-scenario (id storage-connection-failure) (name "Storage Connection/Cable Failure") (module memory-storage))
+  (failure-scenario (id boot-storage-failure) (name "Boot Storage Not Found") (module memory-storage))
+  (failure-scenario (id storage-failing) (name "Storage Drive Failing") (module memory-storage))
+  (failure-scenario (id cpu-overheating) (name "CPU or VRM Overheating") (module power-motherboard)))

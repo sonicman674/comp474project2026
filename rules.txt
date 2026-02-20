@@ -1,0 +1,253 @@
+;;; PC HARDWARE DIAGNOSTIC EXPERT SYSTEM - RULEBASE (R)
+
+;;; Course: COMP 474/6741 - Intelligent Systems
+;;; Domain: Personal Computer Hardware Diagnostics
+;;; This file contains defrules for diagnostic inference.
+;;; Load order: facts.txt first, then rules.txt
+;;; Usage: Assert (reported-symptom (symptom-id <id>) (observed yes)) then (run)
+
+
+;;; DEBUGGING SUPPORT - Enable with (watch rules), (watch facts), (watch activations)
+
+
+(defrule init-diagnostic-session
+  "Initialize session state for debugging when first symptom is reported"
+  (reported-symptom (symptom-id ?s) (observed yes))
+  (not (session-state (phase ?p)))
+  =>
+  (assert (session-state (phase started) (message "Diagnostic session initialized")))
+  (printout t crlf "*** DIAGNOSTIC SESSION STARTED ***" crlf))
+
+
+;;; MODULE 1: POWER & MOTHERBOARD - Diagnostic rules (Robert's domain)
+
+
+(defrule diagnose-psu-failure
+  "Rule 1: No power at all strongly indicates PSU complete failure"
+  (reported-symptom (symptom-id no-power-at-all) (observed yes))
+  (symptom-indicator (symptom-id no-power-at-all) (indicates-scenario psu-failure) (strength ?str))
+  (failure-scenario (id psu-failure) (name ?n) (module power-motherboard))
+  =>
+  (assert (diagnostic-conclusion (scenario-id psu-failure) (confidence ?str)
+    (recommended-action "Replace PSU. Check power cable and wall outlet first. Test PSU with paperclip method.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-psu-inadequate-wattage
+  "Rule 2: Shutdown under load indicates insufficient PSU wattage"
+  (reported-symptom (symptom-id shutdown-under-load) (observed yes))
+  (symptom-indicator (symptom-id shutdown-under-load) (indicates-scenario psu-inadequate-wattage) (strength ?str))
+  (failure-scenario (id psu-inadequate-wattage) (name ?n) (module power-motherboard))
+  =>
+  (assert (diagnostic-conclusion (scenario-id psu-inadequate-wattage) (confidence ?str)
+    (recommended-action "Calculate system wattage; upgrade to PSU with 20-30% headroom.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-motherboard-post-failure
+  "Rule 3: POST beep codes indicate motherboard or component detection failure"
+  (reported-symptom (symptom-id post-beep-codes) (observed yes))
+  (symptom-indicator (symptom-id post-beep-codes) (indicates-scenario motherboard-post-failure) (strength ?str))
+  (failure-scenario (id motherboard-post-failure) (name ?n) (module power-motherboard))
+  =>
+  (assert (diagnostic-conclusion (scenario-id motherboard-post-failure) (confidence ?str)
+    (recommended-action "Decode beep pattern per motherboard manual. Reseat RAM, GPU, check CPU power.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-loose-power-connections
+  "Rule 4: Intermittent power suggests loose power connections"
+  (reported-symptom (symptom-id intermittent-power) (observed yes))
+  (symptom-indicator (symptom-id intermittent-power) (indicates-scenario loose-power-connections) (strength ?str))
+  (failure-scenario (id loose-power-connections) (name ?n) (module power-motherboard))
+  =>
+  (assert (diagnostic-conclusion (scenario-id loose-power-connections) (confidence ?str)
+    (recommended-action "Reseat 24-pin ATX, CPU 8-pin, and all power connectors firmly.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-cpu-overheating
+  "Rule 5b: System freezes under load indicate CPU or VRM overheating"
+  (reported-symptom (symptom-id system-freezes-under-load) (observed yes))
+  (symptom-indicator (symptom-id system-freezes-under-load) (indicates-scenario cpu-overheating) (strength ?str))
+  (failure-scenario (id cpu-overheating) (name ?n) (module power-motherboard))
+  =>
+  (assert (diagnostic-conclusion (scenario-id cpu-overheating) (confidence ?str)
+    (recommended-action "Reseat CPU cooler; reapply thermal paste. Check VRM temps. Improve case airflow.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-cmos-battery-dead
+  "Rule 6: Time/date reset indicates dead CMOS battery"
+  (reported-symptom (symptom-id time-date-reset) (observed yes))
+  (symptom-indicator (symptom-id time-date-reset) (indicates-scenario cmos-battery-dead) (strength ?str))
+  (failure-scenario (id cmos-battery-dead) (name ?n) (module power-motherboard))
+  =>
+  (assert (diagnostic-conclusion (scenario-id cmos-battery-dead) (confidence ?str)
+    (recommended-action "Replace CR2032 CMOS battery on motherboard.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule power-module-multi-symptom-psu
+  "Rule 7: No power combined with POST beeps strengthens PSU failure diagnosis"
+  (reported-symptom (symptom-id no-power-at-all) (observed yes))
+  (reported-symptom (symptom-id post-beep-codes) (observed yes))
+  (not (diagnostic-conclusion (scenario-id psu-failure)))
+  =>
+  (assert (diagnostic-conclusion (scenario-id psu-failure) (confidence strong)
+    (recommended-action "PSU likely failed. If no beeps, also check motherboard. Reseat power cables.")))
+  (printout t "DIAGNOSIS: PSU Complete Failure (confidence: strong, multi-symptom)" crlf))
+
+
+;;; MODULE 2: DISPLAY & GRAPHICS - Diagnostic rules (Victor's domain)
+
+
+(defrule diagnose-gpu-or-cable-failure
+  "Rule 8: No display output suggests GPU or display cable issue"
+  (reported-symptom (symptom-id no-display-output) (observed yes))
+  (symptom-indicator (symptom-id no-display-output) (indicates-scenario gpu-or-cable-failure) (strength ?str))
+  (failure-scenario (id gpu-or-cable-failure) (name ?n) (module display-graphics))
+  =>
+  (assert (diagnostic-conclusion (scenario-id gpu-or-cable-failure) (confidence ?str)
+    (recommended-action "Reseat GPU. Try different cable/port. Test with integrated graphics if available.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-gpu-overheating-or-memory
+  "Rule 9: Screen artifacts indicate GPU overheating or memory defect"
+  (reported-symptom (symptom-id screen-artifacts) (observed yes))
+  (symptom-indicator (symptom-id screen-artifacts) (indicates-scenario gpu-overheating-or-memory) (strength ?str))
+  (failure-scenario (id gpu-overheating-or-memory) (name ?n) (module display-graphics))
+  =>
+  (assert (diagnostic-conclusion (scenario-id gpu-overheating-or-memory) (confidence ?str)
+    (recommended-action "Clean GPU fans/heatsink; repaste if old. Run stress test. If persists, GPU may be defective.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-display-connection-issue
+  "Rule 10: Monitor not detected indicates display connection problem"
+  (reported-symptom (symptom-id monitor-not-detected) (observed yes))
+  (symptom-indicator (symptom-id monitor-not-detected) (indicates-scenario display-connection-issue) (strength ?str))
+  (failure-scenario (id display-connection-issue) (name ?n) (module display-graphics))
+  =>
+  (assert (diagnostic-conclusion (scenario-id display-connection-issue) (confidence ?str)
+    (recommended-action "Reseat HDMI/DP cable. Try different cable/port. Ensure monitor is powered and on correct input.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-gpu-driver-failure
+  "Rule 11: Driver crash/recovery suggests GPU driver or instability"
+  (reported-symptom (symptom-id driver-crash-recovery) (observed yes))
+  (symptom-indicator (symptom-id driver-crash-recovery) (indicates-scenario gpu-driver-failure) (strength ?str))
+  (failure-scenario (id gpu-driver-failure) (name ?n) (module display-graphics))
+  =>
+  (assert (diagnostic-conclusion (scenario-id gpu-driver-failure) (confidence ?str)
+    (recommended-action "Use DDU to clean reinstall GPU drivers. Update to latest stable. Check GPU temps.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule display-multi-symptom-gpu
+  "Rule 12: No display plus artifacts suggests GPU hardware issue"
+  (reported-symptom (symptom-id no-display-output) (observed yes))
+  (reported-symptom (symptom-id screen-artifacts) (observed yes))
+  (not (diagnostic-conclusion (scenario-id gpu-overheating-or-memory)))
+  =>
+  (assert (diagnostic-conclusion (scenario-id gpu-overheating-or-memory) (confidence strong)
+    (recommended-action "GPU likely failing. Test in another system if possible. Try different display output.")))
+  (printout t "DIAGNOSIS: GPU Overheating or Memory Defect (confidence: strong, multi-symptom)" crlf))
+
+
+;;; MODULE 3: MEMORY & STORAGE - Diagnostic rules (David's domain)
+
+
+(defrule diagnose-ram-seating-or-compatibility
+  "Rule 13: RAM not in BIOS indicates seating or compatibility issue"
+  (reported-symptom (symptom-id ram-not-in-bios) (observed yes))
+  (symptom-indicator (symptom-id ram-not-in-bios) (indicates-scenario ram-seating-or-compatibility) (strength ?str))
+  (failure-scenario (id ram-seating-or-compatibility) (name ?n) (module memory-storage))
+  =>
+  (assert (diagnostic-conclusion (scenario-id ram-seating-or-compatibility) (confidence ?str)
+    (recommended-action "Reseat RAM firmly until clicks. Use correct slots per manual. Verify RAM type/speed compatibility.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-ram-failure
+  "Rule 14: Blue screen crashes often indicate RAM failure"
+  (reported-symptom (symptom-id blue-screen-crashes) (observed yes))
+  (symptom-indicator (symptom-id blue-screen-crashes) (indicates-scenario ram-failure) (strength ?str))
+  (failure-scenario (id ram-failure) (name ?n) (module memory-storage))
+  =>
+  (assert (diagnostic-conclusion (scenario-id ram-failure) (confidence ?str)
+    (recommended-action "Run Memtest86 for full pass. Try one stick at a time to isolate bad module.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-storage-connection-failure
+  "Rule 15: Storage not detected indicates cable or connection failure"
+  (reported-symptom (symptom-id storage-not-detected) (observed yes))
+  (symptom-indicator (symptom-id storage-not-detected) (indicates-scenario storage-connection-failure) (strength ?str))
+  (failure-scenario (id storage-connection-failure) (name ?n) (module memory-storage))
+  =>
+  (assert (diagnostic-conclusion (scenario-id storage-connection-failure) (confidence ?str)
+    (recommended-action "Reseat SATA/data and power cables. Try different port. For NVMe, reseat drive.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-boot-storage-failure
+  "Rule 16: Boot device not found indicates boot storage issue"
+  (reported-symptom (symptom-id boot-device-not-found) (observed yes))
+  (symptom-indicator (symptom-id boot-device-not-found) (indicates-scenario boot-storage-failure) (strength ?str))
+  (failure-scenario (id boot-storage-failure) (name ?n) (module memory-storage))
+  =>
+  (assert (diagnostic-conclusion (scenario-id boot-storage-failure) (confidence ?str)
+    (recommended-action "Check BIOS boot order. Reseat boot drive. Verify drive is detected in BIOS.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule diagnose-storage-failing
+  "Rule 17: Slow storage access suggests failing drive"
+  (reported-symptom (symptom-id slow-storage-access) (observed yes))
+  (symptom-indicator (symptom-id slow-storage-access) (indicates-scenario storage-failing) (strength ?str))
+  (failure-scenario (id storage-failing) (name ?n) (module memory-storage))
+  =>
+  (assert (diagnostic-conclusion (scenario-id storage-failing) (confidence ?str)
+    (recommended-action "Run SMART diagnostics (CrystalDiskInfo). Backup data immediately. Prepare for replacement.")))
+  (printout t "DIAGNOSIS: " ?n " (confidence: " ?str ")" crlf))
+
+(defrule storage-multi-symptom-boot
+  "Rule 18: Boot device not found plus storage not detected strengthens cable/connection diagnosis"
+  (reported-symptom (symptom-id boot-device-not-found) (observed yes))
+  (reported-symptom (symptom-id storage-not-detected) (observed yes))
+  (not (diagnostic-conclusion (scenario-id storage-connection-failure)))
+  =>
+  (assert (diagnostic-conclusion (scenario-id storage-connection-failure) (confidence strong)
+    (recommended-action "Strong indication of loose cable or faulty port. Reseat SATA/NVMe and power. Check BIOS.")))
+  (printout t "DIAGNOSIS: Storage Connection/Cable Failure (confidence: strong, multi-symptom)" crlf))
+
+
+;;; SUMMARY AND DEBUGGING RULES
+
+
+(defrule print-diagnostic-summary
+  "Rule 19: Print summary of all conclusions when run completes"
+  (declare (salience -10))
+  (diagnostic-conclusion (scenario-id ?id) (confidence ?conf) (recommended-action ?act))
+  =>
+  (printout t "  -> " ?id ": " ?act crlf))
+
+(defrule session-complete
+  "Rule 20: Mark session complete for debugging"
+  (declare (salience -20))
+  (diagnostic-conclusion)
+  ?s <- (session-state (phase started) (message ?msg))
+  =>
+  (retract ?s)
+  (assert (session-state (phase complete) (message "Diagnosis complete")))
+  (printout t crlf "*** DIAGNOSTIC SESSION COMPLETE ***" crlf))
+
+(defrule no-symptoms-reported
+  "Rule 21: Prompt user when no symptoms have been asserted (fires once)"
+  (not (reported-symptom))
+  (not (prompt-shown (type no-symptoms)))
+  =>
+  (assert (prompt-shown (type no-symptoms)))
+  (printout t "No symptoms reported. Assert symptoms with: " crlf)
+  (printout t "  (assert (reported-symptom (symptom-id <symptom-id>) (observed yes)))" crlf)
+  (printout t "Valid symptom-ids: no-power-at-all, shutdown-under-load, post-beep-codes," crlf)
+  (printout t "  intermittent-power, time-date-reset, system-freezes-under-load," crlf)
+  (printout t "  no-display-output, screen-artifacts, monitor-not-detected, driver-crash-recovery," crlf)
+  (printout t "  ram-not-in-bios, blue-screen-crashes, storage-not-detected, boot-device-not-found," crlf)
+  (printout t "  slow-storage-access" crlf))
+
+(defrule suggest-next-steps
+  "Rule 22: After diagnosis, suggest verification steps for high-confidence conclusions"
+  (declare (salience -15))
+  (diagnostic-conclusion (scenario-id ?id) (confidence strong))
+  =>
+  (printout t "  [High confidence] Consider verifying with hardware swap test." crlf))
