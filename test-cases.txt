@@ -161,7 +161,7 @@ Result: PASS
 
 Test 6.2 - Symptom Observed = No
 Input: (assert (reported-symptom (symptom-id no-power-at-all) (observed no)))
-Expected: no rules fire; no-symptoms prompt fires instead
+Expected: no rules fire (diagnostic rules require observed=yes; R21 does not fire because a reported-symptom fact exists)
 Result: PASS
 
 Test 6.3 - Duplicate Symptom Assertion

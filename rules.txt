@@ -84,6 +84,7 @@
 
 (defrule power-module-multi-symptom-psu
   "Rule 7: No power combined with POST beeps strengthens PSU failure diagnosis"
+  (declare (salience -1))
   (reported-symptom (symptom-id no-power-at-all) (observed yes))
   (reported-symptom (symptom-id post-beep-codes) (observed yes))
   (not (diagnostic-conclusion (scenario-id psu-failure)))
@@ -138,6 +139,7 @@
 
 (defrule display-multi-symptom-gpu
   "Rule 12: No display plus artifacts suggests GPU hardware issue"
+  (declare (salience -1))
   (reported-symptom (symptom-id no-display-output) (observed yes))
   (reported-symptom (symptom-id screen-artifacts) (observed yes))
   (not (diagnostic-conclusion (scenario-id gpu-overheating-or-memory)))
@@ -202,6 +204,7 @@
 
 (defrule storage-multi-symptom-boot
   "Rule 18: Boot device not found plus storage not detected strengthens cable/connection diagnosis"
+  (declare (salience -1))
   (reported-symptom (symptom-id boot-device-not-found) (observed yes))
   (reported-symptom (symptom-id storage-not-detected) (observed yes))
   (not (diagnostic-conclusion (scenario-id storage-connection-failure)))
